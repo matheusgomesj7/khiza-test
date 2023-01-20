@@ -1,23 +1,25 @@
-<!-- <script setup lang="ts">
-import TheWelcome from "../components/TheWelcome.vue";
-</script> -->
-
 <script>
 import axios from "axios";
+import { cryptoOptions } from "../data/cryptoOptions";
+import NavBar from "../components/NavBar.vue"
 export default {
   data() {
     return {
       isLoading: false,
       trades: [],
       errorMsg: "",
-      dateToFetch: "",
+      dateToFetch: "01/01/2023",
+      selectedCrypto: "ETH",
+      cryptoName: "Ethereum",
+      cryptoOptions,
     };
   },
-
   methods: {
     getTrades() {
       axios
-        .get("https://www.mercadobitcoin.net/api/eth/trades/")
+        .get(
+          `https://www.mercadobitcoin.net/api/${this.selectedCrypto}/trades/`
+        )
         .then((res) => {
           console.log(res.data);
           this.isLoading = false;
@@ -28,11 +30,15 @@ export default {
         });
     },
     onSubmit() {
-      console.log('im working')
-      const newStr = this.dateToFetch.replace(/-/g, ".");
-      const dateToUnix = Math.floor(new Date(newStr).getTime() / 1000);
+      console.log("im working");
+      // const newStr = this.dateToFetch.replace(/-/g, "."); fixme*
+      const dateToUnix = Math.floor(
+        new Date(this.dateToFetch).getTime() / 1000
+      );
       axios
-        .get(`https://www.mercadobitcoin.net/api/eth/trades/${dateToUnix}`)
+        .get(
+          `https://www.mercadobitcoin.net/api/${this.selectedCrypto}/trades/${dateToUnix}`
+        )
         .then((res) => {
           console.log(res.data);
           this.trades = res.data;
@@ -40,7 +46,35 @@ export default {
         .catch((e) => {
           console.log(e);
         });
-    }
+    },
+    formatDate() {
+      let inputValue = this.dateToFetch;
+      inputValue = inputValue.replace(/\D/g, "");
+      inputValue = inputValue.replace(/(\d{2})(\d{2})(\d{4})/, "$1/$2/$3");
+
+      this.dateToFetch = inputValue;
+    },
+    setCryptoName() {
+      const newCryptoName = this.cryptoOptions.find(
+        (crypto) => crypto.value === this.selectedCrypto
+      );
+      this.cryptoName = newCryptoName.label;
+
+      const dateToUnix = Math.floor(
+        new Date(this.dateToFetch).getTime() / 1000
+      );
+      axios
+        .get(
+          `https://www.mercadobitcoin.net/api/${this.selectedCrypto}/trades/${dateToUnix}`
+        )
+        .then((res) => {
+          console.log(res.data);
+          this.trades = res.data;
+        })
+        .catch((e) => {
+          console.log(e);
+        });
+    },
   },
   mounted() {
     this.isLoading = true;
@@ -49,28 +83,43 @@ export default {
 };
 </script>
 
-<!-- 
-  fixme*
-  1. tirar esse input de date, e colocar um normal com string sanitizer
-  2. colocar algum tipo de erro quando a data não existir, pra frente ou pra trás
--->
-
 <template>
   <main>
-    <nav class="navbar">
-      <h1>Khiza DAO</h1>
-    </nav>
+    <Navbar />
 
     <section class="main-header-container">
       <h2 class="main-header">Cripto Trades</h2>
       <form @submit.prevent="onSubmit">
-        <label for="date">Procurar por data: </label>
-        <input id="date" type="date" v-model="dateToFetch" min="2008-10-01" />
-        <button type="submit">Pesquisar</button>
+        <div class="form-container">
+          <label for="date">Data: </label>
+          <input
+            id="date"
+            class="date-input"
+            @input="formatDate"
+            v-model="dateToFetch"
+            maxlength="10"
+          />
+          <button type="submit">Pesquisar</button>
+        </div>
       </form>
     </section>
 
-    <h2 class="coin-header">Ethereum</h2>
+    <h2 class="coin-header">{{ cryptoName }}</h2>
+    <div class="dropdown-container">
+      <select
+        id="crypto-select"
+        v-model="selectedCrypto"
+        @change="setCryptoName"
+      >
+        <option
+          v-for="crypto in cryptoOptions"
+          :value="crypto.value"
+          :key="crypto.value"
+        >
+          {{ crypto.label }}
+        </option>
+      </select>
+    </div>
     <div v-if="isLoading" class="loading-text">Loading...</div>
     <div v-else-if="trades.length === 0" class="invalid-search">
       Invalid date! Try again with a valid one.
@@ -108,9 +157,10 @@ export default {
   font-size: 22px;
   width: 100%;
   height: 70px;
-  border-bottom: 3px solid lightgray;
+  /* border-bottom: 3px solid lightgray; */
   padding: 8px 0;
   background-color: white;
+  box-shadow: 0px 0px 20px 3px #e1e5e8;
 }
 
 .loading-text {
@@ -126,7 +176,6 @@ export default {
   vertical-align: center;
 }
 
-
 .main-header-container {
   width: 100%;
   text-align: center;
@@ -138,10 +187,33 @@ export default {
   padding: 24px 0;
 }
 
+.form-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.form-container label {
+  font-size: 20px;
+}
+
+.date-input {
+  text-align: center;
+  font-size: 16px;
+}
+
 .coin-header {
   text-align: center;
   font-size: 35px;
   padding: 50px 0 20px 0;
+}
+
+.dropdown-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 68px;
 }
 
 .negotiations {
@@ -184,7 +256,6 @@ export default {
   font-size: 16px;
   width: 100%;
   height: 50px;
-  border-top: 3px solid lightgray;
   padding: 8px 0;
   background-color: white;
 }
