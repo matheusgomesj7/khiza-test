@@ -1,8 +1,26 @@
+<!-- eslint-disable prettier/prettier -->
 <script>
 import axios from "axios";
-import { cryptoOptions } from "../data/cryptoOptions";
-import NavBar from "../components/NavBar.vue"
+import { cryptoOptions } from "@/data/cryptoOptions";
+import { fetchTrades } from "@/api/api";
+import NavBar from "@/components/NavBar.vue";
+import DatePicker from "@/components/DatePicker.vue";
+import CryptoDropdown from "@/components/CryptoDropdown.vue"
+import Loading from "@/components/Loading.vue"
+import ErrorSearch from "@/components/ErrorSearch.vue"
+import Negotiations from "@/components/Negotiations.vue"
+import Footer from "@/components/Footer.vue"
+
 export default {
+  components: {
+    NavBar,
+    DatePicker,
+    CryptoDropdown,
+    Loading,
+    ErrorSearch,
+    Negotiations,
+    Footer,
+  },
   data() {
     return {
       isLoading: false,
@@ -15,68 +33,22 @@ export default {
     };
   },
   methods: {
-    getTrades() {
-      axios
-        .get(
-          `https://www.mercadobitcoin.net/api/${this.selectedCrypto}/trades/`
-        )
-        .then((res) => {
-          console.log(res.data);
-          this.isLoading = false;
-          this.trades = res.data;
-        })
-        .catch((e) => {
-          console.log(e);
-        });
+    async getTrades() {
+      this.trades = await fetchTrades(this.selectedCrypto, this.dateToFetch);
+      this.isLoading = false;
     },
-    onSubmit() {
-      console.log("im working");
-      // const newStr = this.dateToFetch.replace(/-/g, "."); fixme*
-      const dateToUnix = Math.floor(
-        new Date(this.dateToFetch).getTime() / 1000
-      );
-      axios
-        .get(
-          `https://www.mercadobitcoin.net/api/${this.selectedCrypto}/trades/${dateToUnix}`
-        )
-        .then((res) => {
-          console.log(res.data);
-          this.trades = res.data;
-        })
-        .catch((e) => {
-          console.log(e);
-        });
+    setDateToFetch(date) {
+      this.dateToFetch = date.date;
+      this.trades = date.trades;
     },
-    formatDate() {
-      let inputValue = this.dateToFetch;
-      inputValue = inputValue.replace(/\D/g, "");
-      inputValue = inputValue.replace(/(\d{2})(\d{2})(\d{4})/, "$1/$2/$3");
+    async setCryptoName(name) {
+      this.cryptoName = name.name;
+      this.selectedCrypto = name.ticker;
 
-      this.dateToFetch = inputValue;
-    },
-    setCryptoName() {
-      const newCryptoName = this.cryptoOptions.find(
-        (crypto) => crypto.value === this.selectedCrypto
-      );
-      this.cryptoName = newCryptoName.label;
-
-      const dateToUnix = Math.floor(
-        new Date(this.dateToFetch).getTime() / 1000
-      );
-      axios
-        .get(
-          `https://www.mercadobitcoin.net/api/${this.selectedCrypto}/trades/${dateToUnix}`
-        )
-        .then((res) => {
-          console.log(res.data);
-          this.trades = res.data;
-        })
-        .catch((e) => {
-          console.log(e);
-        });
+      this.trades = await fetchTrades(this.selectedCrypto, this.dateToFetch);
     },
   },
-  mounted() {
+  created() {
     this.isLoading = true;
     this.getTrades();
   },
@@ -85,97 +57,35 @@ export default {
 
 <template>
   <main>
-    <Navbar />
+    <NavBar />
 
     <section class="main-header-container">
       <h2 class="main-header">Cripto Trades</h2>
-      <form @submit.prevent="onSubmit">
-        <div class="form-container">
-          <label for="date">Data: </label>
-          <input
-            id="date"
-            class="date-input"
-            @input="formatDate"
-            v-model="dateToFetch"
-            maxlength="10"
-          />
-          <button type="submit">Pesquisar</button>
-        </div>
-      </form>
+    </section>
+    <section class="forms">
+      <div class="form-container">
+        <DatePicker
+          :cryptoCoin="this.selectedCrypto"
+          @date-picked="setDateToFetch"
+        />
+      </div>
+
+      <div class="form-container">
+        <CryptoDropdown @crypto-picked="setCryptoName" />
+      </div>
     </section>
 
     <h2 class="coin-header">{{ cryptoName }}</h2>
-    <div class="dropdown-container">
-      <select
-        id="crypto-select"
-        v-model="selectedCrypto"
-        @change="setCryptoName"
-      >
-        <option
-          v-for="crypto in cryptoOptions"
-          :value="crypto.value"
-          :key="crypto.value"
-        >
-          {{ crypto.label }}
-        </option>
-      </select>
-    </div>
-    <div v-if="isLoading" class="loading-text">Loading...</div>
-    <div v-else-if="trades.length === 0" class="invalid-search">
-      Invalid date! Try again with a valid one.
-    </div>
-    <section v-else class="negotiations">
-      <h3 v-if="errorMsg">{{ errorMsg }}</h3>
-      <div class="trades-data-container">
-        <h3>Preço (R$)</h3>
-        <div v-for="trade in trades.slice(0, 25)" :key="trade.tid">
-          <h4 :class="trade.type === 'buy' ? 'green-text' : 'red-text'">
-            {{ trade.price.toFixed(2) }}
-          </h4>
-        </div>
-      </div>
-      <div class="trades-data-container">
-        <h3>Quantidade</h3>
-        <div v-for="trade in trades.slice(0, 25)" :key="trade.tid">
-          <h4>{{ trade.amount.toFixed(4) }}</h4>
-        </div>
-      </div>
-      <div class="trades-data-container">
-        <h3>Horário</h3>
-        <div v-for="trade in trades.slice(0, 25)" :key="trade.tid">
-          <h4>{{ new Date(trade.date * 1000).toLocaleTimeString() }}</h4>
-        </div>
-      </div>
-    </section>
-    <footer class="footer-styles">This is the footer</footer>
+
+    <Loading v-if="isLoading" class="loading-text" />
+    <ErrorSearch v-else-if="trades.length === 0" />
+    <Negotiations v-else :errMsg="errMsg" :trades="trades" />
+
+    <Footer />
   </main>
 </template>
 
 <style>
-.navbar {
-  text-align: center;
-  font-size: 22px;
-  width: 100%;
-  height: 70px;
-  /* border-bottom: 3px solid lightgray; */
-  padding: 8px 0;
-  background-color: white;
-  box-shadow: 0px 0px 20px 3px #e1e5e8;
-}
-
-.loading-text {
-  font-size: 30px;
-  text-align: center;
-  vertical-align: center;
-  margin-top: 75px;
-}
-
-.invalid-search {
-  font-size: 16px;
-  text-align: center;
-  vertical-align: center;
-}
-
 .main-header-container {
   width: 100%;
   text-align: center;
@@ -187,76 +97,20 @@ export default {
   padding: 24px 0;
 }
 
-.form-container {
+.forms {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
 }
 
-.form-container label {
-  font-size: 20px;
-}
-
-.date-input {
-  text-align: center;
-  font-size: 16px;
+.form-container {
+  margin: 0 30px;
 }
 
 .coin-header {
   text-align: center;
   font-size: 35px;
   padding: 50px 0 20px 0;
-}
-
-.dropdown-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 68px;
-}
-
-.negotiations {
-  width: 100%;
-  display: flex;
-  justify-content: space-around;
-}
-
-.negotiations h3 {
-  font-size: 20px;
-  color: black;
-  text-align: center;
-}
-
-.trades-data-container {
-  width: 25vw;
-  text-align: center;
-  border: 1px solid transparent;
-  border-radius: 30px;
-  margin-bottom: 14px;
-  background-color: white;
-  box-shadow: 0px 0px 10px 2px lightblue;
-  padding: 10px 0;
-}
-
-.trades-data-container div {
-  margin: 4px 0;
-}
-
-.green-text {
-  color: green;
-}
-
-.red-text {
-  color: red;
-}
-
-.footer-styles {
-  text-align: center;
-  font-size: 16px;
-  width: 100%;
-  height: 50px;
-  padding: 8px 0;
-  background-color: white;
+  margin-top: -24px;
 }
 </style>
