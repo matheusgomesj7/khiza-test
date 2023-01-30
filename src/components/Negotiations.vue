@@ -13,10 +13,16 @@ export default {
 
 <template>
   <section class="negotiations">
-    <h3 v-if="errorMsg">{{ errorMsg }}</h3>
+    <h3 v-if="errorMsg">An error occurred! Please try again.</h3>
     <div class="trades-data-container">
       <h3>Preço (R$)</h3>
+
+      <!-- # It only shows the first 25 results, as the page has
+      no pagination feature -->
       <div v-for="trade in trades.slice(0, 25)" :key="trade.tid">
+
+        <!-- The value is displayed in green if it was a buying operation,
+        a red if it was a selling one -->
         <h4 :class="trade.type === 'buy' ? 'green-text' : 'red-text'">
           {{ trade.price.toFixed(2) }}
         </h4>

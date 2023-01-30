@@ -9,6 +9,11 @@ export default {
     };
   },
   methods: {
+
+    // # Every time a user selects a different crypto,
+    // it automatically trigger a function in the parent
+    // component to fetch the trades for that crypto
+    // at the current selected date
     setCrypto() {
       const selectedOption = this.cryptoOptions.find(
         (crypto) => crypto.value === this.selectedCrypto
